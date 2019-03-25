@@ -1,0 +1,87 @@
+{
+  "name": "SSN Masker",
+
+  "namespace":"Stanford\\SSNMasker",
+
+  "description": "A module for the Faculty Onboarding database to limit view of the SSN",
+
+  "authors": [
+    {
+      "name": "Andrew Martin",
+      "email": "andy123@stanford.edu",
+      "institution": "Stanford University"
+    },
+    {
+      "name": "Jae Lee",
+      "email": "jael@stanford.edu",
+      "institution": "Stanford University"
+    }
+  ],
+
+  "permissions": [
+    "redcap_save_record"
+  ],
+
+  "links": {
+    "control-center": [
+    ],
+    "project": [
+      {
+        "name": "SSNViewer: Plugin Links",
+        "icon": "gear",
+        "url": "src/DisplayPluginLinks.php"
+      },
+      {
+        "name": "SSNViewer: SSN Viewer",
+        "icon": "gear",
+        "url": "src/Viewer.php"
+      }
+    ]
+  },
+
+  "no-auth-pages": [
+    "src/Viewer"
+  ],
+
+  "system-settings": [
+    {
+      "key": "enable-system-debug-logging",
+      "name": "<b>Enable Debug Logging (system-wide)</b>",
+      "required": false,
+      "type": "checkbox"
+    }
+  ],
+
+  "project-settings": [
+    {
+          "key": "approved-users",
+          "name": "<b>SSN Approved Viewers</b><br>The following users can view SSN information<br>Enter one SUNet ID per line ",
+          "required": false,
+          "type": "textarea"
+    },
+    {
+      "key": "approved-users-2",
+      "name": "<b>SSN Approved Viewers 2</b><br>If there are any SUNet IDs in this second group, both the previous and this group must approve deletion of an SSN before it is wiped from the system.  You cannot have a single SUNET ID in both groups.",
+      "required": false,
+      "type": "textarea"
+    },
+    {
+      "key": "ssn-field",
+      "name": "<b>SSN Field</b><br>Enter the field where SSN is entered",
+      "required": false,
+      "type": "field-list"
+    },
+    {
+      "key": "fac-name-field",
+      "name": "<b>Faculaty Name Field</b><br>Enter field where faculty name is entered",
+      "required": false,
+      "type": "field-list"
+    },
+    {
+      "key": "enable-project-debug-logging",
+      "name": "<b>Enable Debug Logging</b>",
+      "required": false,
+      "type": "checkbox"
+    }
+  ]
+}
