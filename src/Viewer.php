@@ -43,13 +43,13 @@ if (in_array($sunet_id, $approved_users)) {
  */
 
 
-$approved_users = $array = preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users'));
-$approved_users_2 = $array = preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users-2'));
+$approved_users = preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users'));
+$approved_users_2 =  preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users-2'));
 
 $sunet_id = $_SERVER['WEBAUTH_USER'];
-//$sunet_id = 'test1';
+$sunet_id = 'test1';
 
-list($group,$other_group) = $module->checkIfAuthorizedUser($sunet_id);
+list($group,$other_group) = $module->checkIfAuthorizedUser($sunet_id, $approved_users, $approved_users_2);
 
 $module->emDebug($group,$other_group, "GROUP");
 
@@ -71,7 +71,7 @@ if (empty($record)) {
         array(REDCap::getRecordIdField(),$ssn_field,$fac_name_field));
     $results = json_decode($q,true);
     if (!empty($results['errors'])) {
-        $errors[] = json_encode($result);
+        $errors[] = json_encode($results);
     } elseif (empty($results)) {
         $errors[] = "Record $record does not appear to be valid.";
     } else {
@@ -107,7 +107,7 @@ if (isset($_POST['submit']) AND $_POST['submit'] == 'WIPE') {
         $q = REDCap::saveData('json',json_encode(array($data)));
         if (!empty($q['errors'])) {
             $module->emError($q, "Error wiping SSN");
-            $errors[] = "An error occurred when clearning the SSN value.  
+            $errors[] = "An error occurred when clearing the SSN value.  
             Please notify <a href='mailto:redcap-help@list.stanford.edu'>redcap-help@list.stanford.edu</a>
             with the current timestamp and record number that you were working on.
             The SSN may not have been securely cleared from the database.";

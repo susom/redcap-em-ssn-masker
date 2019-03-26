@@ -8,13 +8,10 @@ use REDCap;
 class SSNMasker extends \ExternalModules\AbstractExternalModule {
 
 
-    function checkIfAuthorizedUser($sunet_id) {
-        $approved_users = $array = preg_split("/\r\n|\n|\r|','/", $this->getProjectSetting('approved-users'));
-        $approved_users_2 = $array = preg_split("/\r\n|\n|\r|','/", $this->getProjectSetting('approved-users-2'));
-
-        $this->emDebug($sunet_id,$approved_users);
+    function checkIfAuthorizedUser($sunet_id,  $approved_users, $approved_users_2) {
 
         $group = $other_group = null;
+
         if (in_array($sunet_id, $approved_users)) {
             $group = "1";
             $other_group = "2";
@@ -39,6 +36,9 @@ class SSNMasker extends \ExternalModules\AbstractExternalModule {
         $q = db_query($sql);
         return db_result($q,0);
     }
+
+
+
 
     function emLog()
     {
