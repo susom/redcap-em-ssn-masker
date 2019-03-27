@@ -19,6 +19,8 @@ class SSNMasker extends \ExternalModules\AbstractExternalModule {
             $group = "2";
             $other_group = "1";
         } else {
+
+            $this->emError("Does not have access: logged in as ".$sunet_id, $approved_users, $approved_users_2 );
             die ("You do not have access to this feature.  Please contact the project administrators");
         }
 
