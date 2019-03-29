@@ -20,7 +20,7 @@ class SSNMasker extends \ExternalModules\AbstractExternalModule {
             $other_group = "1";
         } else {
 
-            $this->emError("Does not have access: logged in as ".$sunet_id, $approved_users, $approved_users_2 );
+            $this->emError("Does not have SSN access: logged in as ".$sunet_id );
             die ("You do not have access to this feature.  Please contact the project administrators");
         }
 
@@ -38,8 +38,6 @@ class SSNMasker extends \ExternalModules\AbstractExternalModule {
         $q = db_query($sql);
         return db_result($q,0);
     }
-
-
 
 
     function emLog()

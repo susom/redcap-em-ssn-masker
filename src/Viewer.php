@@ -13,36 +13,6 @@ use REDCap;
 
 $module->emDebug("Starting SSN Masker");
 
-
-/**
-// Get a list of authorized users
-$q = REDCap::getData(cfg::$config_pid, 'json', cfg::$config_record_id);
-$results = json_decode($q,true);
-if (!empty($results['error'])) {
-    Plugin::log("Error loading config data from " . cfg::$config_pid . ": " . print_r($results,true), "ERROR");
-    exit();
-}
-$result = $results[0];
-// Replace comma with \n
-$approved_users = empty($result['ssn_viewers'])   ? array() : array_map('trim', explode("\n",$result['ssn_viewers']));
-$approved_users2 = empty($result['ssn_viewers2']) ? array() : array_map('trim', explode("\n",$result['ssn_viewers2']));
-
-
-
-
-$group = $other_group = null;
-if (in_array($sunet_id, $approved_users)) {
-    $group = "1";
-    $other_group = "2";
-} else if (in_array($sunet_id, $approved_users2)) {
-    $group = "2";
-    $other_group = "1";
-} else {
-    die ("You do not have access to this feature.  Please contact the project administrators");
-}
- */
-
-
 $approved_users = preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users'));
 $approved_users_2 =  preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users-2'));
 
@@ -51,7 +21,7 @@ $sunet_id = $_SERVER['WEBAUTH_USER'];
 
 list($group,$other_group) = $module->checkIfAuthorizedUser($sunet_id, $approved_users, $approved_users_2);
 
-$module->emDebug($group,$other_group, "GROUP");
+$module->emDebug($project_id, $group,$other_group, "GROUP");
 
 //if ( (defined('SUPER_USER') && SUPER_USER) OR (in_array($sunet_id, $approved_users)) ) {
 
@@ -82,15 +52,12 @@ if (empty($record)) {
 }
 
 if (isset($_POST['submit']) AND $_POST['submit'] == 'WIPE') {
-    global $username;
 
     // Mark that group x has wiped SSN
     REDCap::logEvent("SSN Wipe Approved For Group $group","","",$record);
 
     $module->emDebug($approved_users, "Approved Users");
     $module->emDebug($approved_users_2,  "Approved Users2");
-
-
 
     // Check if other group has also wiped so we can delete
     if (count($approved_users_2) > 0 AND !($module->hasGroupWiped($record, $other_group))) {
@@ -115,22 +82,22 @@ if (isset($_POST['submit']) AND $_POST['submit'] == 'WIPE') {
             // Flush logs
             $sql = "
           UPDATE redcap_log_event
-            SET sql_log = REPLACE(sql_log, '\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'', '\'" . $ssn_field . "\', \'---cleared by " . $username . " on " . date('Y-m-d H:i:s') . "---\'')
+            SET sql_log = REPLACE(sql_log, '\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'', '\'" . $ssn_field . "\', \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
           WHERE 
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND sql_log like '%\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
-            //print "<pre>" . $sql . "</pre>";
+            print "1: <pre>" . $sql . "</pre>";
             db_query($sql);
 
             $sql = "
           UPDATE redcap_log_event
-            SET data_values = REPLACE(data_values, '". $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'', '" . $ssn_field . " = \'---cleared by " . $username . " on " . date('Y-m-d H:i:s') . "---\'')
+            SET data_values = REPLACE(data_values, '". $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'', '" . $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
           WHERE 
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND data_values LIKE '%" . $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
-            //print "<pre>" . $sql . "</pre>";
+            print "2: <pre>" . $sql . "</pre>";
             db_query($sql);
 
             $errors[] = "The SSN for record $record has been wiped, including all log history.";
