@@ -16,16 +16,15 @@ $module->emDebug("Starting SSN Masker");
 $approved_users = preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users'));
 $approved_users_2 =  preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users-2'));
 
+$record = $_REQUEST['record'];
 $sunet_id = $_SERVER['WEBAUTH_USER'];
-//$sunet_id = 'test1';
+//$sunet_id = 'jael';
 
 list($group,$other_group) = $module->checkIfAuthorizedUser($sunet_id, $approved_users, $approved_users_2);
 
-$module->emDebug($project_id, $group,$other_group, "GROUP");
-
 //if ( (defined('SUPER_USER') && SUPER_USER) OR (in_array($sunet_id, $approved_users)) ) {
 
-$record = $_REQUEST['record'];
+
 
 $ssn_field = $module->getProjectSetting('ssn-field');
 $fac_name_field =  $module->getProjectSetting('fac-name-field');
@@ -56,52 +55,15 @@ if (isset($_POST['submit']) AND $_POST['submit'] == 'WIPE') {
     // Mark that group x has wiped SSN
     REDCap::logEvent("SSN Wipe Approved For Group $group","","",$record);
 
-    $module->emDebug($approved_users, "Approved Users");
-    $module->emDebug($approved_users_2,  "Approved Users2");
-
     // Check if other group has also wiped so we can delete
     if (count($approved_users_2) > 0 AND !($module->hasGroupWiped($record, $other_group))) {
         // Waiting for other group to wipe!
         REDCap::logEvent("SSN Wipe Delayed - Waiting for Group $other_group","","",$record);
-        $errors[] = "The SSN will be Wiped when someone from group $other_group completes their workflow.";
+        $errors[] = "The SSN will be wiped when someone from group $other_group completes their workflow.";
     } else {
         // Wipe it!
-
-        $data = array(
-            'request_id'                => $record,
-            $ssn_field                  => "WIPED"
-        );
-        $q = REDCap::saveData('json',json_encode(array($data)));
-        if (!empty($q['errors'])) {
-            $module->emError($q, "Error wiping SSN");
-            $errors[] = "An error occurred when clearing the SSN value.  
-            Please notify <a href='mailto:redcap-help@list.stanford.edu'>redcap-help@list.stanford.edu</a>
-            with the current timestamp and record number that you were working on.
-            The SSN may not have been securely cleared from the database.";
-        } else {
-            // Flush logs
-            $sql = "
-          UPDATE redcap_log_event
-            SET sql_log = REPLACE(sql_log, '\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'', '\'" . $ssn_field . "\', \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
-          WHERE 
-            project_id = " . intval($project_id) . "
-            AND pk = '" . db_real_escape_string($record) . "'
-            AND sql_log like '%\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
-            print "1: <pre>" . $sql . "</pre>";
-            db_query($sql);
-
-            $sql = "
-          UPDATE redcap_log_event
-            SET data_values = REPLACE(data_values, '". $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'', '" . $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
-          WHERE 
-            project_id = " . intval($project_id) . "
-            AND pk = '" . db_real_escape_string($record) . "'
-            AND data_values LIKE '%" . $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
-            print "2: <pre>" . $sql . "</pre>";
-            db_query($sql);
-
-            $errors[] = "The SSN for record $record has been wiped, including all log history.";
-        }
+        $wipe_errors = $module->wipeSSN($project_id, $record, $ssn_field, $ssn, $sunet_id);
+        $errors = array_merge($wipe_errors, $errors);
     }
 }
 
@@ -121,12 +83,6 @@ if (isset($ssn) and $ssn == "") {
     $errors[] = "$name - Record $record - SSN is blank (was it ever filled out?)";
     $ssn_value = "MISSING";
 }
-
-
-
-
-
-
 
 
 
