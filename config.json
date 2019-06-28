@@ -73,7 +73,7 @@
     },
     {
       "key": "fac-name-field",
-      "name": "<b>Faculaty Name Field</b><br>Enter field where faculty name is entered",
+      "name": "<b>Faculty Name Field</b><br>Enter field where faculty name is entered",
       "required": false,
       "type": "field-list"
     },
