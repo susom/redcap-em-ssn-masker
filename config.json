@@ -54,10 +54,10 @@
 
   "project-settings": [
     {
-          "key": "approved-users",
-          "name": "<b>SSN Approved Viewers</b><br>The following users can view SSN information<br>Enter one SUNet ID per line ",
-          "required": false,
-          "type": "textarea"
+      "key": "approved-users",
+      "name": "<b>SSN Approved Viewers</b><br>The following users can view SSN information<br>Enter one SUNet ID per line ",
+      "required": false,
+      "type": "textarea"
     },
     {
       "key": "approved-users-2",
@@ -66,8 +66,20 @@
       "type": "textarea"
     },
     {
+      "key": "ssn-form",
+      "name": "<b>SSN Form</b><br>Enter the form where the SSN field is collected",
+      "required": false,
+      "type": "form-list"
+    },
+    {
       "key": "ssn-field",
       "name": "<b>SSN Field</b><br>Enter the field where SSN is entered",
+      "required": false,
+      "type": "field-list"
+    },
+    {
+      "key": "ssn-url-field",
+      "name": "<b>SSN URL Field</b><br>Enter the field where SSN URL is entered. ",
       "required": false,
       "type": "field-list"
     },
