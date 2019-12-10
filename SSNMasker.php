@@ -123,11 +123,29 @@ function getFieldValues($record, $event_id, $target_fields) {
         } else {
             // Flush logs
             $errors[] = $this->updateLogSql('sql_log', $ssn_field, $ssn, $sunet_id, $project_id, $record);
-            $errors[] = $this->updateLogSql('data_values', $ssn_field, $ssn, $sunet_id, $project_id,$record);
+            $errors[] = $this->updateDataValues('data_values', $ssn_field, $ssn, $sunet_id, $project_id,$record);
 
             $errors[] = "The SSN for record $record has been wiped, including all log history.";
         }
         return array_filter($errors);
+    }
+
+    function updateDataValues($column_name, $ssn_field, $ssn, $sunet_id, $project_id,$record) {
+        $sql = "
+          UPDATE redcap_log_event
+            SET data_values = REPLACE($column_name, '" . $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'', '" . $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
+          WHERE 
+            project_id = " . intval($project_id) . "
+            AND pk = '" . db_real_escape_string($record) . "'
+            AND " . db_real_escape_string($column_name) . " like '%" . $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
+        //print "01: <pre>" . $sql . "</pre>";
+        $q = db_query($sql);
+
+        if ($error = db_error()) {
+            $this->emError($error,"ERROR RUNNING SQL ");
+            return "Error wiping SSN - ask administrator to review logs: ". $error;
+        }
+
     }
 
     function updateLogSql($column_name, $ssn_field, $ssn, $sunet_id, $project_id,$record) {
@@ -138,6 +156,35 @@ function getFieldValues($record, $event_id, $target_fields) {
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND " . db_real_escape_string($column_name) . " like '%\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
+        //print "01: <pre>" . $sql . "</pre>";
+        $q = db_query($sql);
+
+        if ($error = db_error()) {
+            $this->emError($error,"ERROR RUNNING SQL ");
+            return "Error wiping SSN - ask administrator to review logs: ". $error;
+        }
+
+    }
+
+    function updateLogSqlOld($column_name, $ssn_field, $ssn, $sunet_id, $project_id,$record) {
+        switch ($column_name) {
+            case 'sql_log':
+                $target_string =   "'\'".  $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\''";
+                $replace_string =  "'\'" . $ssn_field . "\', \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\''";
+                break;
+            case 'data_values':
+                $target_string =  $ssn_field . " = \'" . db_real_escape_string($ssn);
+                $replace_string = $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\''";
+                break;
+        }
+
+        $sql = "
+          UPDATE redcap_log_event
+            SET $column_name = REPLACE($column_name, ". $target_string . " , ".$replace_string . ")
+          WHERE 
+            project_id = " . intval($project_id) . "
+            AND pk = '" . db_real_escape_string($record) . "'
+            AND " . db_real_escape_string($column_name) . " like '%" . $target_string . "\'%' LIMIT 100";
         //print "01: <pre>" . $sql . "</pre>";
         $q = db_query($sql);
 
