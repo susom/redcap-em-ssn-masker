@@ -96,10 +96,11 @@ function getFieldValues($record, $event_id, $target_fields) {
     }
 
 
-    function hasGroupWiped($record, $group) {
+    function hasGroupWiped($project_id, $record, $group) {
         $sql = "SELECT count(*) FROM redcap_log_event WHERE 
           -- page = 'PLUGIN' and 
-          pk = '" . db_real_escape_string($record) . "' 
+          project_id = $project_id 
+          and pk = '" . db_real_escape_string($record) . "' 
           and description = 'SSN Wipe Approved For Group " . intval($group) ."'";
         $q = db_query($sql);
         return db_result($q,0);

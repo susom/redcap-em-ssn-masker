@@ -18,6 +18,7 @@ $approved_users_2 =  preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('
 
 $record = $_REQUEST['record'];
 $sunet_id = $_SERVER['WEBAUTH_USER'];
+$sunet_id = 'test1';
 
 list($group,$other_group) = $module->checkIfAuthorizedUser($sunet_id, $approved_users, $approved_users_2);
 
@@ -55,7 +56,7 @@ if (isset($_POST['submit']) AND $_POST['submit'] == 'WIPE') {
     REDCap::logEvent("SSN Wipe Approved For Group $group","","",$record);
 
     // Check if other group has also wiped so we can delete
-    if (count($approved_users_2) > 0 AND !($module->hasGroupWiped($record, $other_group))) {
+    if (count($approved_users_2) > 0 AND !($module->hasGroupWiped($project_id, $record, $other_group))) {
         // Waiting for other group to wipe!
         REDCap::logEvent("SSN Wipe Delayed - Waiting for Group $other_group","","",$record);
         $errors[] = "The SSN will be wiped when someone from group $other_group completes their workflow.";
