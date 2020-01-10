@@ -18,7 +18,6 @@ $approved_users_2 =  preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('
 
 $record = $_REQUEST['record'];
 $sunet_id = $_SERVER['WEBAUTH_USER'];
-$sunet_id = 'test1';
 
 list($group,$other_group) = $module->checkIfAuthorizedUser($sunet_id, $approved_users, $approved_users_2);
 
