@@ -30,7 +30,8 @@ public function redcap_save_record($project_id, $record = NULL, $instrument, $ev
 
         if (!empty($ssn_value)) {
             //if ssn has been set, then construct the ssn_url and save it to the admin data form
-            $api_url = $this->getUrl('src/Viewer.php',true,true);
+            //$api_url = $this->getUrl('src/Viewer.php',true,true);
+            $api_url = $this->getUrl('src/Viewer.php',true,false);
             $ssn_url = $api_url."&record=".$record;
 
             $data = array(
