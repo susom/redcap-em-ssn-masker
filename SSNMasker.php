@@ -8,72 +8,78 @@ use REDCap;
 class SSNMasker extends \ExternalModules\AbstractExternalModule {
 
 
-public function redcap_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance) {
-    $target_form = $this->getProjectSetting('ssn-form');
+    /******************************************************************************************************************/
+    /* HOOK METHODS                                                                                                   */
+    /******************************************************************************************************************/
+    public function redcap_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance) {
+        $target_form = $this->getProjectSetting('ssn-form');
 
-    //$this->emDebug($target_form . " vs " . $instrument);
+        //$this->emDebug($target_form . " vs " . $instrument);
 
-    if ($instrument == $target_form) {
-        //if the ssn field has been entered, then populate the ssn field on the admin data form.
-        $ssn_field = $this->getProjectSetting('ssn-field');
-        $ssn_url_field = $this->getProjectSetting('ssn-url-field');
+        if ($instrument == $target_form) {
+            //if the ssn field has been entered, then populate the ssn field on the admin data form.
+            $ssn_field = $this->getProjectSetting('ssn-field');
+            $ssn_url_field = $this->getProjectSetting('ssn-url-field');
 
-        //if either are empty, bail
-        if (empty($ssn_field) || empty($ssn_url_field)) {
-            $this->emError("SSN field and SSN URL field not set.  Unable to set ssn url for this project ($project_id).");
-            $this->exitAfterHook();
-        }
+            //if either are empty, bail
+            if (empty($ssn_field) || empty($ssn_url_field)) {
+                $this->emError("SSN field and SSN URL field not set.  Unable to set ssn url for this project ($project_id).");
+                $this->exitAfterHook();
+            }
 
-        $results = $this->getFieldValues($record, $event_id, array($ssn_field, $ssn_url_field));
-        $ssn_value = current($results)[$ssn_field];
-        //$this->emDebug("retrieving for record $record: ", $ssn_field . ": " . $ssn_value, $ssn_url_field, $results);
+            $results = $this->getFieldValues($record, $event_id, array($ssn_field, $ssn_url_field));
+            $ssn_value = current($results)[$ssn_field];
+            //$this->emDebug("retrieving for record $record: ", $ssn_field . ": " . $ssn_value, $ssn_url_field, $results);
 
-        if (!empty($ssn_value)) {
-            //if ssn has been set, then construct the ssn_url and save it to the admin data form
-            //$api_url = $this->getUrl('src/Viewer.php',true,true);
-            $api_url = $this->getUrl('src/Viewer.php',true,false);
-            $ssn_url = $api_url."&record=".$record;
+            if (!empty($ssn_value)) {
+                //if ssn has been set, then construct the ssn_url and save it to the admin data form
+                //$api_url = $this->getUrl('src/Viewer.php',true,true);
+                $api_url = $this->getUrl('src/Viewer.php',true,false);
+                $ssn_url = $api_url."&record=".$record;
 
-            $data = array(
-                REDCap::getRecordIdField() => $record,
-                'redcap_event_name'        => REDCap::getEventNames(true,false, $event_id),
-                $ssn_url_field             => $ssn_url
-            );
-
-            $response = REDCap::saveData('json', json_encode(array($data)));
-
-            if (!empty($response['errors'])) {
-                $msg = "Error saving SSN URL field to admin_data form";
-                $this->emError($msg, $response['errors'], $data);
-
-                REDCap::logEvent(
-                    $msg,
-                    "Unable to set the SSN Url field for this record: ".$response['errors'],
-                    NULL,
-                    $record
+                $data = array(
+                    REDCap::getRecordIdField() => $record,
+                    'redcap_event_name'        => REDCap::getEventNames(true,false, $event_id),
+                    $ssn_url_field             => $ssn_url
                 );
+
+                $response = REDCap::saveData('json', json_encode(array($data)));
+
+                if (!empty($response['errors'])) {
+                    $msg = "Error saving SSN URL field to admin_data form";
+                    $this->emError($msg, $response['errors'], $data);
+
+                    REDCap::logEvent(
+                        $msg,
+                        "Unable to set the SSN Url field for this record: ".$response['errors'],
+                        NULL,
+                        $record
+                    );
+
+                }
 
             }
 
         }
-
     }
-}
 
-function getFieldValues($record, $event_id, $target_fields) {
-    $params = array(
-        'return_format' => 'json',
-        'records' => $record,
-        'fields' => $target_fields,
-        'events' => $event_id
-    );
+    /******************************************************************************************************************/
+    /* CLASS METHODS                                                                                                   */
+    /******************************************************************************************************************/
+    function getFieldValues($record, $event_id, $target_fields) {
+        $params = array(
+            'return_format' => 'json',
+            'records' => $record,
+            'fields' => $target_fields,
+            'events' => $event_id
+        );
 
-    $q = REDCap::getData($params);
-    $results = json_decode($q, true);
+        $q = REDCap::getData($params);
+        $results = json_decode($q, true);
 
-    //$this->emDebug($results);
-    return $results;
-}
+        //$this->emDebug($results);
+        return $results;
+    }
 
     function checkIfAuthorizedUser($sunet_id,  $approved_users, $approved_users_2) {
 
@@ -96,6 +102,48 @@ function getFieldValues($record, $event_id, $target_fields) {
 
     }
 
+    /**
+     *
+     *
+     * @param $project_id
+     * @param $start_date_field
+     * @param $ssn_field
+     * @return false|mixed
+     *
+     */
+    function findRecordsToExpireSSN($project_id, $start_date_field, $ssn_field, $test_date=null) {
+        /* SQL Query
+           select rd1.record, rd1.project_id, rd1.value, rd2.value
+from redcap_data AS rd1
+JOIN redcap_data AS rd2
+ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
+where rd1.project_id = 17094 -- and rd1.event_id=105818
+and rd1.field_name="hd_faculty_startdate" and DATE(rd1.value) < CURDATE()
+and rd2.field_name = "faculty_ssn" and rd2.value != "WIPED";
+    */
+       if ($test_date) {
+           $threshold = " and rd1.field_name='%s' and DATE(rd1.value) < '$test_date';";
+       } else {
+           $threshold = " and rd1.field_name='%s' and DATE(rd1.value) < CURDATE();";
+       }
+        $sql = sprintf(
+            "select rd1.record from redcap_data AS rd1 JOIN redcap_data AS rd2
+ ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
+ where rd1.project_id = %d
+ and rd2.field_name = '%s' and rd2.value != 'WIPED'" . $threshold,
+            db_real_escape_string($project_id),
+            db_real_escape_string($ssn_field),
+            db_real_escape_string($start_date_field)
+        );
+
+        $q = db_query($sql);
+        while ($row = db_fetch_assoc($q)) {
+            $expire_list[] = $row['record'];
+        }
+
+            //return db_result($q,0);
+        return $expire_list;
+    }
 
     function hasGroupWiped($project_id, $record, $group) {
         $sql = "SELECT count(*) FROM redcap_log_event WHERE 
@@ -198,6 +246,35 @@ function getFieldValues($record, $event_id, $target_fields) {
     }
 
 
+    /******************************************************************************************************************/
+    /* CRON METHODS                                                                                                   */
+    /******************************************************************************************************************/
+
+    /**
+     * @return void
+     * This cron function is called daily. The expected start date will be checked and if past, the SSN will be deleted
+     * using the existing cleanup methods.
+     *
+     */
+    public function cronSSNMaskExpiry() {
+        //find all the projects that are using the SSN Mask EM
+        $enabled = ExternalModules::getEnabledModules($this->PREFIX);
+
+        while($row = $enabled->fetch_assoc()){
+
+            $proj_id = $row['project_id'];
+
+            // Create the API URL to start the process
+            $ssnExpiryCheckURL = $this->getUrl('src/ssnExpiryCheck.php?pid=' . $proj_id, true, true);
+
+
+        }
+    }
+
+
+    /******************************************************************************************************************/
+    /* EMLOGGER METHODS                                                                                                   */
+    /******************************************************************************************************************/
     function emLog()
     {
         global $module;
