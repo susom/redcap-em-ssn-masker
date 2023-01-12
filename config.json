@@ -40,7 +40,18 @@
   },
 
   "no-auth-pages": [
-    "src/Viewer"
+    "src/Viewer",
+    "src/ssnExpiryCheck"
+  ],
+
+  "crons": [
+    {
+      "cron_name": "ssn_mask_expiry_check",
+      "cron_description": "This cron will run once a day to check that the SSN should be deleted if passed the expected start date",
+      "method": "cronSSNMaskExpiry",
+      "cron_frequency": "86400",
+      "cron_max_run_time": "3600"
+    }
   ],
 
   "system-settings": [
@@ -88,6 +99,18 @@
       "name": "<b>Faculty Name Field</b><br>Enter field where faculty name is entered",
       "required": false,
       "type": "field-list"
+    },
+    {
+      "key": "expiry-date-field",
+      "name": "<b>Date Field At Which SSN should be deleted</b><br>Enter field where date when SSN should be expired. For example: hd_faculty_start_date",
+      "required": true,
+      "type": "field-list"
+    },
+    {
+      "key": "expiry-test-date",
+      "name": "<b>FOR TESTING: Date at which SSN should be deleted</b><br>Enter threshold date when SSN should be expired. SSN will be wiped where date is after this date. For example: 2022-01-03<br><b><u>If left blank, current date will be used.</b></u>",
+      "required": true,
+      "type": "text"
     },
     {
       "key": "enable-project-debug-logging",
