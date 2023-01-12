@@ -103,13 +103,13 @@ class SSNMasker extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
-     *
-     *
      * @param $project_id
      * @param $start_date_field
      * @param $ssn_field
      * @return false|mixed
      *
+     * Method used in daily cron job. This returns the list of records for which start date has passed
+     * and the SSN is still visible.
      */
     function findRecordsToExpireSSN($project_id, $start_date_field, $ssn_field, $test_date=null) {
         /* SQL Query
@@ -121,6 +121,8 @@ where rd1.project_id = 17094 -- and rd1.event_id=105818
 and rd1.field_name="hd_faculty_startdate" and DATE(rd1.value) < CURDATE()
 and rd2.field_name = "faculty_ssn" and rd2.value != "WIPED";
     */
+
+        //ADDED for TESTING purposes: if a data field was entered, use that date instead of current date
        if ($test_date) {
            $threshold = " and rd1.field_name='%s' and DATE(rd1.value) < '$test_date';";
        } else {
@@ -136,12 +138,13 @@ and rd2.field_name = "faculty_ssn" and rd2.value != "WIPED";
             db_real_escape_string($start_date_field)
         );
 
+       $this->emDebug($sql);
+
         $q = db_query($sql);
         while ($row = db_fetch_assoc($q)) {
             $expire_list[] = $row['record'];
         }
 
-            //return db_result($q,0);
         return $expire_list;
     }
 
