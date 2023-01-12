@@ -2,6 +2,8 @@
 namespace Stanford\SSNMasker;
 /** @var \Stanford\SSNMasker\SSNMasker $module */
 
+exit();
+
 use REDCap;
 use Project;
 use Exception;
