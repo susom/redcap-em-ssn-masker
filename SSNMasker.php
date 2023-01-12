@@ -144,30 +144,25 @@ class SSNMasker extends AbstractExternalModule
 
         //ADDED for TESTING purposes: if a data field was entered, use that date instead of current date
         if ($test_date) {
-            $threshold = " and rd1.field_name='%s' and DATE(rd1.value) < '$test_date';";
+            $threshold = " and rd1.field_name=? and DATE(rd1.value) < '$test_date';";
         } else {
-            $threshold = " and rd1.field_name='%s' and DATE(rd1.value) < CURDATE();";
+            $threshold = " and rd1.field_name=? and DATE(rd1.value) < CURDATE();";
         }
-        $sql = sprintf(
-    "SELECT 
-                rd1.record from redcap_data AS rd1 
-            JOIN
-                redcap_data AS rd2 ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
-            WHERE 
-                rd1.project_id = %d
-                and rd2.field_name = '%s' 
-                and rd2.value != 'WIPED'" . $threshold,
-            db_real_escape_string($project_id),
-            db_real_escape_string($ssn_field),
-            db_real_escape_string($start_date_field)
-        );
 
-        $q = db_query($sql);
+        $sql_string =  "SELECT rd1.record from redcap_data AS rd1 
+            JOIN
+                redcap_data AS rd2 
+                ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
+            WHERE 
+                rd1.project_id = ? and rd2.field_name = ? and rd2.value != 'WIPED'" . $threshold;
+        $sql_args = [$project_id, $ssn_field, $start_date_field];
+        $result = $this->query($sql_string, $sql_args);
         $expire_list = [];
-        while ($row = db_fetch_assoc($q)) {
+        while($row = $result->fetch_assoc()) {
             $expire_list[] = $row['record'];
         }
-        $this->emDebug($sql, $expire_list);
+
+        $this->emDebug($sql_string, $expire_list);
         return $expire_list;
     }
 
@@ -289,6 +284,12 @@ class SSNMasker extends AbstractExternalModule
     }
 
 
+    /**
+     * @return void
+     *
+     * This method does not work in cron as call to REDCap::getRecordIdField needs to be in project context??
+     * In the meantime, use the url call.
+     */
     private function ssnExpiryCheck() {
         $project_id = $this->getProjectId();
         $this->emDebug("Using project $project_id");
@@ -299,13 +300,16 @@ class SSNMasker extends AbstractExternalModule
             $expire_test_date = $this->getProjectSetting('expiry-test-date');
             $expire_date_field = $this->getProjectSetting('expiry-date-field');
 
+            //if ssn_field is not set, then don't proceed
+            if ($ssn_field==null) return;
+
             $records_to_expire = $this->findRecordsToExpireSSN($project_id, $expire_date_field, $ssn_field, $expire_test_date);
 
             //reset counters
             $ctr = 0;
             $wiped = array();
             if (!empty($records_to_expire)) {
-                $rec_id = REDCap::getRecordIdField();
+                $rec_id = \REDCap::getRecordIdField();  //we don't have project context??
 
             // 2. Get the salient data for each of those records.
                 $params = [
@@ -364,12 +368,15 @@ class SSNMasker extends AbstractExternalModule
         foreach($this->getProjectsWithModuleEnabled() as $localProjectId){
             $_GET['pid'] = $localProjectId;
 
+            // Giving up on this. i don't seem to have project context
             // Project specific method calls go here.
-            // Create the API URL to start the process
-            $this->ssnExpiryCheck();
+            //$this->ssnExpiryCheck();
 
             // Backup plan to make web call
-            // $ssnExpiryCheckURL = $this->getUrl('src/ssnExpiryCheck.php?pid=' . $localProjectId, true, true);
+            $ssnExpiryCheckURL = $this->getUrl('src/ssnExpiryCheck.php?pid=' . $localProjectId, true, true);
+
+            // Call the project through the API so it will be in project context.
+            $response = http_get($ssnExpiryCheckURL);
         }
 
         // Put the pid back the way it was before this cron job (likely doesn't matter, but is good housekeeping practice)
