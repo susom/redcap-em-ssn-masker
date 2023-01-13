@@ -143,26 +143,33 @@ class SSNMasker extends AbstractExternalModule
         */
 
         //ADDED for TESTING purposes: if a data field was entered, use that date instead of current date
+         $query = $this->createQuery();
+
+        $query->add("SELECT rd1.record from redcap_data AS rd1
+            JOIN redcap_data AS rd2 
+            ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
+            WHERE rd1.project_id = ? and rd2.field_name = ? and rd2.value != 'WIPED'",
+                    [$project_id,$ssn_field]);
+
+        //ADDED for TESTING purposes: if a data field was entered, use that date instead of current date
         if ($test_date) {
-            $threshold = " and rd1.field_name=? and DATE(rd1.value) < '$test_date';";
+            $query->add(" and rd1.field_name=? and DATE(rd1.value)<?;",
+                        [$start_date_field, $test_date]);
         } else {
-            $threshold = " and rd1.field_name=? and DATE(rd1.value) < CURDATE();";
+            $query->add(" and rd1.field_name=? and DATE(rd1.value) < CURDATE();",
+                        [$start_date_field]);
         }
 
-        $sql_string =  "SELECT rd1.record from redcap_data AS rd1 
-            JOIN
-                redcap_data AS rd2 
-                ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
-            WHERE 
-                rd1.project_id = ? and rd2.field_name = ? and rd2.value != 'WIPED'" . $threshold;
-        $sql_args = [$project_id, $ssn_field, $start_date_field];
-        $result = $this->query($sql_string, $sql_args);
+        $this->emDebug($query);
+
+        $result = $query->execute();
+
         $expire_list = [];
         while($row = $result->fetch_assoc()) {
             $expire_list[] = $row['record'];
         }
 
-        $this->emDebug($sql_string, $expire_list);
+        $this->emDebug($expire_list);
         return $expire_list;
     }
 
@@ -230,6 +237,71 @@ class SSNMasker extends AbstractExternalModule
             return "Error wiping SSN - ask administrator to review logs: " . $error;
         }
 
+    }
+
+    /**
+     * @param $project_id
+     * @param $column_name
+     * @param $ssn_field
+     * @param $ssn
+     * @param $sunet
+     * @param $record
+     * @return mixed
+     *
+     * This method attempts to clear the SSN entry from the sql_log field in the redcap_lgo_event table.
+     * sql_logs have two types of entries: INSERTS and UPDATES
+     * 1. INSERT entries look like this:
+     *    INSERT INTO redcap_data (project_id, event_id, record, field_name, value, instance) VALUES (44, 192, '44', 'faculty_ssn', '111111122', NULL)
+     * 2. UPDATE entries look like this:
+     *    UPDATE redcap_data SET value = '111111123' WHERE project_id = 44 AND record = '45' AND field_name = 'faculty_ssn' AND event_id = 192 AND instance is null
+     *
+     * The escaped ('\') apostrophe will drive you crazy but we need to escape the apostrophe because that is how entry is entered in the sql_log.
+     * For example: the entry looks like this
+     *    ... VALUES (44, 192, '44', 'faculty_ssn', '111111122', NULL)"
+     * So in order to find and replace the correct ssn, we need to add in the apostrophe, the comma and the space.
+     */
+    function updateLogSqlBROKEN($project_id, $column_name, $ssn_field, $ssn, $sunet, $record)
+    {
+        // 1. get the log event table for this project
+        $log_event_table = REDCap::getLogEventTable($project_id);
+
+        // 2. HANDLE THE INSERT CASE: setup the sql strings to use the recommended  query method
+        /* ORIGINAL SQL
+         UPDATE redcap_log_event8
+            SET sql_log = REPLACE(sql_log, '\'faculty_ssn\', \'111111123\'', '\'faculty_ssn\', \'---cleared by cronSSNExpiry on 2023-01-12 12:43:42---\'')
+          WHERE
+            project_id = 44
+            AND pk = '45'
+            AND sql_log like '%\'faculty_ssn\', \'111111123\'%' LIMIT 100
+        */
+        $sql_string = "
+        UPDATE ?
+            SET sql_log = REPLACE(?, '\'?\', \'?\'', '\'---cleared by ? on ". date('Y-m-d H:i:s')." ---\'')
+          WHERE 
+            project_id = ?
+            AND pk = \'?\'
+            AND ? like '%\'?\', \'?\'%' LIMIT 100";
+
+        $sql_args = [
+            $log_event_table,
+            $column_name,
+            \PDO::quote($ssn_field),
+            $ssn,
+            $ssn_field,
+            $sunet,
+            $project_id,
+            $record,
+            $column_name,
+            $ssn_field,
+            $ssn
+        ];
+        try {
+            $result = $this->query($sql_string, $sql_args);
+            $this->emDebug("UpdateLogSql", $sql_string, $result);
+        } catch (\Exception $e) {
+            $this->emError("Exception while running updateLogSql update", $e->getMessage(), $e->getTraceAsString());
+            return "Error wiping SSN - ask administrator to review logs: " . $e->getTraceAsString();
+        }
     }
 
     function updateLogSql($column_name, $ssn_field, $ssn, $sunet_id, $project_id, $record)
