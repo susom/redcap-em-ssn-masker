@@ -1,99 +1,114 @@
 {
-  "name": "SSN Masker",
-
-  "namespace":"Stanford\\SSNMasker",
-
-  "description": "A module for the Faculty Onboarding database to limit view of the SSN",
-
-  "authors": [
-    {
-      "name": "Andrew Martin",
-      "email": "andy123@stanford.edu",
-      "institution": "Stanford University"
-    },
-    {
-      "name": "Jae Lee",
-      "email": "jael@stanford.edu",
-      "institution": "Stanford University"
-    }
-  ],
-
-  "permissions": [
-    "redcap_save_record"
-  ],
-
-  "links": {
-    "control-center": [
+    "name": "SSN Masker",
+    "namespace": "Stanford\\SSNMasker",
+    "description": "A module for the Faculty Onboarding database to limit view of the SSN",
+    "authors": [
+        {
+            "name": "Andrew Martin",
+            "email": "andy123@stanford.edu",
+            "institution": "Stanford University"
+        },
+        {
+            "name": "Jae Lee",
+            "email": "jael@stanford.edu",
+            "institution": "Stanford University"
+        }
     ],
-    "project": [
-      {
-        "name": "SSNViewer: Plugin Links",
-        "icon": "gear",
-        "url": "src/DisplayPluginLinks.php"
-      },
-      {
-        "name": "SSNViewer: SSN Viewer",
-        "icon": "gear",
-        "url": "src/Viewer.php"
-      }
+    "permissions": [
+        "redcap_save_record"
+    ],
+    "framework-version": 9,
+    "links": {
+        "control-center": [
+        ],
+        "project": [
+            {
+                "name": "SSNViewer: Plugin Links",
+                "icon": "gear",
+                "url": "src/DisplayPluginLinks.php"
+            },
+            {
+                "name": "SSNViewer: SSN Viewer",
+                "icon": "gear",
+                "url": "src/Viewer.php"
+            }
+        ]
+    },
+    "no-auth-pages": [
+        "src/Viewer",
+        "src/ssnExpiryCheck"
+    ],
+    "crons": [
+        {
+            "cron_name": "ssn_mask_expiry_check",
+            "cron_description": "This cron will run once a day to check that the SSN should be deleted if passed the expected start date",
+            "method": "cronSSNMaskExpiry",
+            "cron_frequency": "86400",
+            "cron_max_run_time": "3600"
+        }
+    ],
+    "system-settings": [
+        {
+            "key": "enable-system-debug-logging",
+            "name": "<b>Enable Debug Logging (system-wide)</b>",
+            "required": false,
+            "type": "checkbox"
+        }
+    ],
+    "project-settings": [
+        {
+            "key": "approved-users",
+            "name": "<b>SSN Approved Viewers</b><br>The following users can view SSN information<br>Enter one SUNet ID per line ",
+            "required": false,
+            "type": "textarea"
+        },
+        {
+            "key": "approved-users-2",
+            "name": "<b>SSN Approved Viewers 2</b><br>If there are any SUNet IDs in this second group, both the previous and this group must approve deletion of an SSN before it is wiped from the system.  You cannot have a single SUNET ID in both groups.",
+            "required": false,
+            "type": "textarea"
+        },
+        {
+            "key": "ssn-form",
+            "name": "<b>SSN Form</b><br>Enter the form where the SSN field is collected",
+            "required": false,
+            "type": "form-list"
+        },
+        {
+            "key": "ssn-field",
+            "name": "<b>SSN Field</b><br>Enter the field where SSN is entered",
+            "required": false,
+            "type": "field-list"
+        },
+        {
+            "key": "ssn-url-field",
+            "name": "<b>SSN URL Field</b><br>Enter the field where SSN URL is entered. ",
+            "required": false,
+            "type": "field-list"
+        },
+        {
+            "key": "fac-name-field",
+            "name": "<b>Faculty Name Field</b><br>Enter field where faculty name is entered",
+            "required": false,
+            "type": "field-list"
+        },
+        {
+            "key": "expiry-date-field",
+            "name": "<b>Date Field At Which SSN should be deleted</b><br>Enter field where date when SSN should be expired. For example: hd_faculty_start_date",
+            "required": true,
+            "type": "field-list"
+        },
+        {
+            "key": "expiry-test-date",
+            "name": "<b>FOR TESTING: Date at which SSN should be deleted</b><br>Enter threshold date when SSN should be expired. SSN will be wiped where date is after this date. For example: 2022-01-03<br><b><u>If left blank, current date will be used.</b></u>",
+            "required": true,
+            "type": "text"
+        },
+        {
+            "key": "enable-project-debug-logging",
+            "name": "<b>Enable Debug Logging</b>",
+            "required": false,
+            "type": "checkbox"
+        }
     ]
-  },
-
-  "no-auth-pages": [
-    "src/Viewer"
-  ],
-
-  "system-settings": [
-    {
-      "key": "enable-system-debug-logging",
-      "name": "<b>Enable Debug Logging (system-wide)</b>",
-      "required": false,
-      "type": "checkbox"
-    }
-  ],
-
-  "project-settings": [
-    {
-      "key": "approved-users",
-      "name": "<b>SSN Approved Viewers</b><br>The following users can view SSN information<br>Enter one SUNet ID per line ",
-      "required": false,
-      "type": "textarea"
-    },
-    {
-      "key": "approved-users-2",
-      "name": "<b>SSN Approved Viewers 2</b><br>If there are any SUNet IDs in this second group, both the previous and this group must approve deletion of an SSN before it is wiped from the system.  You cannot have a single SUNET ID in both groups.",
-      "required": false,
-      "type": "textarea"
-    },
-    {
-      "key": "ssn-form",
-      "name": "<b>SSN Form</b><br>Enter the form where the SSN field is collected",
-      "required": false,
-      "type": "form-list"
-    },
-    {
-      "key": "ssn-field",
-      "name": "<b>SSN Field</b><br>Enter the field where SSN is entered",
-      "required": false,
-      "type": "field-list"
-    },
-    {
-      "key": "ssn-url-field",
-      "name": "<b>SSN URL Field</b><br>Enter the field where SSN URL is entered. ",
-      "required": false,
-      "type": "field-list"
-    },
-    {
-      "key": "fac-name-field",
-      "name": "<b>Faculty Name Field</b><br>Enter field where faculty name is entered",
-      "required": false,
-      "type": "field-list"
-    },
-    {
-      "key": "enable-project-debug-logging",
-      "name": "<b>Enable Debug Logging</b>",
-      "required": false,
-      "type": "checkbox"
-    }
-  ]
 }

@@ -2,80 +2,106 @@
 
 namespace Stanford\SSNMasker;
 
+use ExternalModules\AbstractExternalModule;
 use ExternalModules\ExternalModules;
 use REDCap;
 
-class SSNMasker extends \ExternalModules\AbstractExternalModule {
+require_once "emLoggerTrait.php";
 
+class SSNMasker extends AbstractExternalModule
+{
 
-public function redcap_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance) {
-    $target_form = $this->getProjectSetting('ssn-form');
+    use emLoggerTrait;
 
-    //$this->emDebug($target_form . " vs " . $instrument);
+    /******************************************************************************************************************/
+    /* HOOK METHODS                                                                                                   */
+    /******************************************************************************************************************/
+    public function redcap_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance)
+    {
 
-    if ($instrument == $target_form) {
-        //if the ssn field has been entered, then populate the ssn field on the admin data form.
-        $ssn_field = $this->getProjectSetting('ssn-field');
-        $ssn_url_field = $this->getProjectSetting('ssn-url-field');
+        $target_form = $this->getProjectSetting('ssn-form');
+        //$this->emDebug($target_form . " vs " . $instrument);
 
-        //if either are empty, bail
-        if (empty($ssn_field) || empty($ssn_url_field)) {
-            $this->emError("SSN field and SSN URL field not set.  Unable to set ssn url for this project ($project_id).");
-            $this->exitAfterHook();
-        }
+        if ($instrument == $target_form) {
+            //if the ssn field has been entered, then populate the ssn field on the admin data form.
+            $ssn_field = $this->getProjectSetting('ssn-field');
+            $ssn_url_field = $this->getProjectSetting('ssn-url-field');
 
-        $results = $this->getFieldValues($record, $event_id, array($ssn_field, $ssn_url_field));
-        $ssn_value = current($results)[$ssn_field];
-        //$this->emDebug("retrieving for record $record: ", $ssn_field . ": " . $ssn_value, $ssn_url_field, $results);
+            //if either are empty, bail
+            if (empty($ssn_field) || empty($ssn_url_field)) {
+                $this->emError("SSN field and SSN URL field not set.  Unable to set ssn url for this project ($project_id).");
+                return;
+            }
 
-        if (!empty($ssn_value)) {
-            //if ssn has been set, then construct the ssn_url and save it to the admin data form
-            //$api_url = $this->getUrl('src/Viewer.php',true,true);
-            $api_url = $this->getUrl('src/Viewer.php',true,false);
-            $ssn_url = $api_url."&record=".$record;
+            $results = $this->getFieldValues($record, $event_id, array($ssn_field, $ssn_url_field));
+            $ssn_value = current($results)[$ssn_field];
+            //$this->emDebug("retrieving for record $record: ", $ssn_field . ": " . $ssn_value, $ssn_url_field, $results);
 
-            $data = array(
-                REDCap::getRecordIdField() => $record,
-                'redcap_event_name'        => REDCap::getEventNames(true,false, $event_id),
-                $ssn_url_field             => $ssn_url
-            );
+            if (!empty($ssn_value)) {
+                //if ssn has been set, then construct the ssn_url and save it to the admin data form
+                //$api_url = $this->getUrl('src/Viewer.php',true,true);
+                $api_url = $this->getUrl('src/Viewer.php', true, false);
+                $ssn_url = $api_url . "&record=" . $record;
 
-            $response = REDCap::saveData('json', json_encode(array($data)));
-
-            if (!empty($response['errors'])) {
-                $msg = "Error saving SSN URL field to admin_data form";
-                $this->emError($msg, $response['errors'], $data);
-
-                REDCap::logEvent(
-                    $msg,
-                    "Unable to set the SSN Url field for this record: ".$response['errors'],
-                    NULL,
-                    $record
+                $data = array(
+                    REDCap::getRecordIdField() => $record,
+                    'redcap_event_name' => REDCap::getEventNames(true, false, $event_id),
+                    $ssn_url_field => $ssn_url
                 );
+
+                $response = REDCap::saveData('json', json_encode(array($data)));
+
+                if (!empty($response['errors'])) {
+                    $msg = "Error saving SSN URL field to admin_data form";
+                    $this->emError($msg, $response['errors'], $data);
+
+                    REDCap::logEvent(
+                        $msg,
+                        "Unable to set the SSN Url field for this record: " . $response['errors'],
+                        NULL,
+                        $record
+                    );
+
+                }
 
             }
 
         }
-
     }
-}
 
-function getFieldValues($record, $event_id, $target_fields) {
-    $params = array(
-        'return_format' => 'json',
-        'records' => $record,
-        'fields' => $target_fields,
-        'events' => $event_id
-    );
+    /******************************************************************************************************************/
+    /* CLASS METHODS                                                                                                   */
+    /******************************************************************************************************************/
+    /**
+     * @param $record string
+     * @param $event_id string
+     * @param $target_fields array
+     * @return array
+     */
+    function getFieldValues($record, $event_id, $target_fields)
+    {
+        $params = array(
+            'return_format' => 'json',
+            'records' => $record,
+            'fields' => $target_fields,
+            'events' => $event_id
+        );
 
-    $q = REDCap::getData($params);
-    $results = json_decode($q, true);
+        $q = REDCap::getData($params);
+        $results = json_decode($q, true);
+        return $results;
+    }
 
-    //$this->emDebug($results);
-    return $results;
-}
 
-    function checkIfAuthorizedUser($sunet_id,  $approved_users, $approved_users_2) {
+    /**
+     * Determine if sunet is member of group 1 or group 2
+     * @param $sunet_id string
+     * @param $approved_users array
+     * @param $approved_users_2 array
+     * @return string[]|void
+     */
+    function checkIfAuthorizedUser($sunet_id, $approved_users, $approved_users_2)
+    {
 
         $group = $other_group = null;
 
@@ -86,8 +112,7 @@ function getFieldValues($record, $event_id, $target_fields) {
             $group = "2";
             $other_group = "1";
         } else {
-
-            $this->emError("Does not have SSN access: logged in as ". $sunet_id );
+            $this->emError("Does not have SSN access: logged in as " . $sunet_id);
             die ("You do not have access to this feature.  Please contact the project administrators");
         }
 
@@ -96,26 +121,80 @@ function getFieldValues($record, $event_id, $target_fields) {
 
     }
 
+    /**
+     * @param $project_id
+     * @param $start_date_field
+     * @param $ssn_field
+     * @return false|mixed
+     *
+     * Method used in daily cron job. This returns the list of records for which start date has passed
+     * and the SSN is still visible.
+     */
+    function findRecordsToExpireSSN($project_id, $start_date_field, $ssn_field, $test_date = null)
+    {
+        /* SQL Query
+           select rd1.record, rd1.project_id, rd1.value, rd2.value
+            from redcap_data AS rd1
+            JOIN redcap_data AS rd2
+            ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
+            where rd1.project_id = 17094 -- and rd1.event_id=105818
+            and rd1.field_name="hd_faculty_startdate" and DATE(rd1.value) < CURDATE()
+            and rd2.field_name = "faculty_ssn" and rd2.value != "WIPED";
+        */
 
-    function hasGroupWiped($project_id, $record, $group) {
-        $sql = "SELECT count(*) FROM redcap_log_event WHERE 
+        //ADDED for TESTING purposes: if a data field was entered, use that date instead of current date
+        if ($test_date) {
+            $threshold = " and rd1.field_name=? and DATE(rd1.value) < '$test_date';";
+        } else {
+            $threshold = " and rd1.field_name=? and DATE(rd1.value) < CURDATE();";
+        }
+
+        $sql_string =  "SELECT rd1.record from redcap_data AS rd1 
+            JOIN
+                redcap_data AS rd2 
+                ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
+            WHERE 
+                rd1.project_id = ? and rd2.field_name = ? and rd2.value != 'WIPED'" . $threshold;
+        $sql_args = [$project_id, $ssn_field, $start_date_field];
+        $result = $this->query($sql_string, $sql_args);
+        $expire_list = [];
+        while($row = $result->fetch_assoc()) {
+            $expire_list[] = $row['record'];
+        }
+
+        $this->emDebug($sql_string, $expire_list);
+        return $expire_list;
+    }
+
+
+    /**
+     * Determines if a project_id was wiped
+     * @param $project_id
+     * @param $record
+     * @param $group
+     * @return false|mixed
+     */
+    function hasGroupWiped($project_id, $record, $group)
+    {
+        $log_event_table = REDCap::getLogEventTable($project_id);
+        $sql = "SELECT count(*) FROM $log_event_table WHERE 
           -- page = 'PLUGIN' and 
           project_id = $project_id 
           and pk = '" . db_real_escape_string($record) . "' 
-          and description = 'SSN Wipe Approved For Group " . intval($group) ."'";
+          and description = 'SSN Wipe Approved For Group " . intval($group) . "'";
         $q = db_query($sql);
-        return db_result($q,0);
+        return db_result($q, 0);
     }
 
-    function wipeSSN($project_id, $record, $ssn_field, $ssn, $sunet_id) {
-
+    function wipeSSN($project_id, $record, $ssn_field, $ssn, $sunet_id)
+    {
 
         $data = array(
-            'request_id'                => $record,
-            $ssn_field                  => "WIPED"
+            'request_id' => $record,
+            $ssn_field => "WIPED"
         );
 
-        $q = REDCap::saveData('json',json_encode(array($data)));
+        $q = REDCap::saveData('json', json_encode(array($data)));
         if (!empty($q['errors'])) {
             $this->emError($q, "Error wiping SSN");
             $errors[] = "An error occurred when clearing the SSN value.  
@@ -125,64 +204,71 @@ function getFieldValues($record, $event_id, $target_fields) {
         } else {
             // Flush logs
             $errors[] = $this->updateLogSql('sql_log', $ssn_field, $ssn, $sunet_id, $project_id, $record);
-            $errors[] = $this->updateDataValues('data_values', $ssn_field, $ssn, $sunet_id, $project_id,$record);
-
+            $errors[] = $this->updateDataValues('data_values', $ssn_field, $ssn, $sunet_id, $project_id, $record);
             $errors[] = "The SSN for record $record has been wiped, including all log history.";
         }
         return array_filter($errors);
     }
 
-    function updateDataValues($column_name, $ssn_field, $ssn, $sunet_id, $project_id,$record) {
+    function updateDataValues($column_name, $ssn_field, $ssn, $sunet_id, $project_id, $record)
+    {
+        $log_event_table = REDCap::getLogEventTable($project_id);
         $sql = "
-          UPDATE redcap_log_event
-            SET data_values = REPLACE($column_name, '" . $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'', '" . $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
+          UPDATE $log_event_table
+            SET data_values = REPLACE($column_name, '" . $ssn_field . " = \'" .
+            db_real_escape_string($ssn) . "\'', '" . $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
           WHERE 
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND " . db_real_escape_string($column_name) . " like '%" . $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
         //print "01: <pre>" . $sql . "</pre>";
+        $this->emDebug("Sql for UpdateDataValues", $sql);
         $q = db_query($sql);
 
         if ($error = db_error()) {
-            $this->emError($error,"ERROR RUNNING SQL ");
-            return "Error wiping SSN - ask administrator to review logs: ". $error;
+            $this->emError($error, "ERROR RUNNING SQL ");
+            return "Error wiping SSN - ask administrator to review logs: " . $error;
         }
 
     }
 
-    function updateLogSql($column_name, $ssn_field, $ssn, $sunet_id, $project_id,$record) {
+    function updateLogSql($column_name, $ssn_field, $ssn, $sunet_id, $project_id, $record)
+    {
+        $log_event_table = REDCap::getLogEventTable($project_id);
         $sql = "
-          UPDATE redcap_log_event
+          UPDATE $log_event_table
             SET sql_log = REPLACE($column_name, '\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'', '\'" . $ssn_field . "\', \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
           WHERE 
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND " . db_real_escape_string($column_name) . " like '%\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
         //print "01: <pre>" . $sql . "</pre>";
+        $this->emDebug("UpdateLogSql", $sql);
         $q = db_query($sql);
 
         if ($error = db_error()) {
-            $this->emError($error,"ERROR RUNNING SQL ");
-            return "Error wiping SSN - ask administrator to review logs: ". $error;
+            $this->emError($error, "ERROR RUNNING SQL ");
+            return "Error wiping SSN - ask administrator to review logs: " . $error;
         }
 
     }
 
-    function updateLogSqlOld($column_name, $ssn_field, $ssn, $sunet_id, $project_id,$record) {
+    function updateLogSqlOld($column_name, $ssn_field, $ssn, $sunet_id, $project_id, $record)
+    {
         switch ($column_name) {
             case 'sql_log':
-                $target_string =   "'\'".  $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\''";
-                $replace_string =  "'\'" . $ssn_field . "\', \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\''";
+                $target_string = "'\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\''";
+                $replace_string = "'\'" . $ssn_field . "\', \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\''";
                 break;
             case 'data_values':
-                $target_string =  $ssn_field . " = \'" . db_real_escape_string($ssn);
+                $target_string = $ssn_field . " = \'" . db_real_escape_string($ssn);
                 $replace_string = $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\''";
                 break;
         }
 
         $sql = "
           UPDATE redcap_log_event
-            SET $column_name = REPLACE($column_name, ". $target_string . " , ".$replace_string . ")
+            SET $column_name = REPLACE($column_name, " . $target_string . " , " . $replace_string . ")
           WHERE 
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
@@ -191,33 +277,111 @@ function getFieldValues($record, $event_id, $target_fields) {
         $q = db_query($sql);
 
         if ($error = db_error()) {
-            $this->emError($error,"ERROR RUNNING SQL ");
-            return "Error wiping SSN - ask administrator to review logs: ". $error;
+            $this->emError($error, "ERROR RUNNING SQL ");
+            return "Error wiping SSN - ask administrator to review logs: " . $error;
         }
 
     }
 
 
-    function emLog()
-    {
-        global $module;
-        $emLogger = ExternalModules::getModuleInstance('em_logger');
-        $emLogger->emLog($module->PREFIX, func_get_args(), "INFO");
-    }
+    /**
+     * @return void
+     *
+     * This method does not work in cron as call to REDCap::getRecordIdField needs to be in project context??
+     * In the meantime, use the url call.
+     */
+    private function ssnExpiryCheck() {
+        $project_id = $this->getProjectId();
+        $this->emDebug("Using project $project_id");
 
-    function emDebug()
-    {
-        // Check if debug enabled
-        if ($this->getSystemSetting('enable-system-debug-logging') || (!empty($_GET['pid']) && $this->getProjectSetting('enable-project-debug-logging'))) {
-            $emLogger = ExternalModules::getModuleInstance('em_logger');
-            $emLogger->emLog($this->PREFIX, func_get_args(), "DEBUG");
+        try {
+            // 1. Retrieve all the record_ids where current date is past the 'expiry-date_field
+            $ssn_field = $this->getProjectSetting('ssn-field');
+            $expire_test_date = $this->getProjectSetting('expiry-test-date');
+            $expire_date_field = $this->getProjectSetting('expiry-date-field');
+
+            //if ssn_field is not set, then don't proceed
+            if ($ssn_field==null) return;
+
+            $records_to_expire = $this->findRecordsToExpireSSN($project_id, $expire_date_field, $ssn_field, $expire_test_date);
+
+            //reset counters
+            $ctr = 0;
+            $wiped = array();
+            if (!empty($records_to_expire)) {
+                $rec_id = \REDCap::getRecordIdField();  //we don't have project context??
+
+            // 2. Get the salient data for each of those records.
+                $params = [
+                    "project_id" => $project_id,
+                    "fields" => array($rec_id, $ssn_field),
+                    "records" => $records_to_expire,
+                    "return_format" => 'json'
+                ];
+                $q = json_decode(REDCap::getData($params), true);
+
+
+            // 3. Call wipeSSN($project_id, $record, $ssn_field, $ssn, $sunet_id (just for logs so just enter as "expiryCron")
+            // Wipe it!
+                foreach ($q as $i => $j) {
+                    $record = $j[$rec_id];
+                    $ssn = $j[$ssn_field];
+
+                    $wipe_errors = $this->wipeSSN($project_id, $record, $ssn_field, $ssn, "cronSSNExpiry");
+                    if (str_contains(implode("", $wipe_errors), 'Error')) {
+                        REDCap::logEvent("Error wiping SSN", "Cron job was unable to wipe SSN for this record. Please contact admin to review logs.", "", $record);
+                    } else {
+                        $ctr++;
+                        $wiped[] = $record;
+                    }
+                }
+            }
+            if ($ctr == 0) {
+                REDCap::logEvent("SSNMasker Cron", "Cron job to wipe SSN found no records with SSN.");
+            } else {
+                REDCap::logEvent("SSNMasker Cron", "Cron job wiped $ctr SSN. These records were affected: ". implode(", ", $wiped));
+            }
+
+        } catch (\Exception $e) {
+            $this->emError("Exception while wiping SSN for project $project_id", $e->getMessage(), $e->getTraceAsString());
+            //TODO log into logEvent??
+            return;
         }
+
     }
 
-    function emError()
+
+
+    /******************************************************************************************************************/
+    /* CRON METHODS                                                                                                   */
+    /******************************************************************************************************************/
+    /**
+     * @return string
+     * This cron function is called daily. The expected start date will be checked and if past, the SSN will be deleted
+     * using the existing cleanup methods.
+     *
+     */
+    public function cronSSNMaskExpiry($cronInfo)
     {
-        $emLogger = ExternalModules::getModuleInstance('em_logger');
-        $emLogger->emLog($this->PREFIX, func_get_args(), "ERROR");
-    }
+        $originalPid = $_GET['pid'];
 
+        foreach($this->getProjectsWithModuleEnabled() as $localProjectId){
+            $_GET['pid'] = $localProjectId;
+
+            // Giving up on this. i don't seem to have project context
+            // Project specific method calls go here.
+            //$this->ssnExpiryCheck();
+
+            // Backup plan to make web call
+            $ssnExpiryCheckURL = $this->getUrl('src/ssnExpiryCheck.php?pid=' . $localProjectId, true, true);
+
+            // Call the project through the API so it will be in project context.
+            $response = http_get($ssnExpiryCheckURL);
+        }
+
+        // Put the pid back the way it was before this cron job (likely doesn't matter, but is good housekeeping practice)
+        $_GET['pid'] = $originalPid;
+        $this->emDebug("Cron completed");
+        return "The \"{$cronInfo['cron_description']}\" cron job completed successfully.";
+    }
 }
