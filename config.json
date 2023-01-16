@@ -101,7 +101,7 @@
         {
             "key": "expiry-test-date",
             "name": "<b>FOR TESTING: Date at which SSN should be deleted</b><br>Enter threshold date when SSN should be expired. SSN will be wiped where date is after this date. For example: 2022-01-03<br><b><u>If left blank, current date will be used.</b></u>",
-            "required": true,
+            "required": false,
             "type": "text"
         },
         {

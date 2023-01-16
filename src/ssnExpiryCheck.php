@@ -17,7 +17,10 @@ try {
     $expire_date_field = $module->getProjectSetting('expiry-date-field');
 
     //if ssn_field is not set, then don't proceed
-    if ($ssn_field == null) exit();
+    if (($ssn_field == null) or ($expire_date_field == null)) {
+        REDCap::logEvent("SSNMasker Cron", "Set up is incomplete. Cron job was unable to wipe SSN. Please contact admin to review setup.");
+        exit();
+    }
 
     $records_to_expire = $module->findRecordsToExpireSSN($project_id, $expire_date_field, $ssn_field, $expire_test_date);
 
@@ -45,7 +48,7 @@ try {
 
             $wipe_errors = $module->wipeSSN($project_id, $record, $ssn_field, $ssn, "cronSSNExpiry");
             if (str_contains(implode("", $wipe_errors), 'Error')) {
-                REDCap::logEvent("Error wiping SSN", "Cron job was unable to wipe SSN for this record. Please contact admin to review logs.", "", $record);
+                REDCap::logEvent("SSNMasker Cron: Error wiping SSN", "Cron job was unable to wipe SSN for this record. Please contact admin to review logs.", "", $record);
             } else {
                 $ctr++;
                 $wiped[] = $record;
