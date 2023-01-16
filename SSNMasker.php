@@ -16,6 +16,8 @@ class SSNMasker extends AbstractExternalModule
     /******************************************************************************************************************/
     /* HOOK METHODS                                                                                                   */
     /******************************************************************************************************************/
+
+
     public function redcap_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance)
     {
 
