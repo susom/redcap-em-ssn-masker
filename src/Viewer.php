@@ -12,6 +12,7 @@ use REDCap;
  */
 
 $module->emDebug("Starting SSN Masker");
+$project_id = $module->getProjectId();
 
 $approved_users = preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users'));
 $approved_users_2 =  preg_split("/\r\n|\n|\r|','/", $module->getProjectSetting('approved-users-2'));

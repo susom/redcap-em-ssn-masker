@@ -148,7 +148,7 @@ class SSNMasker extends AbstractExternalModule
          $query = $this->createQuery();
 
         $query->add("SELECT rd1.record from redcap_data AS rd1
-            JOIN redcap_data AS rd2 
+            JOIN redcap_data AS rd2
             ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
             WHERE rd1.project_id = ? and rd2.field_name = ? and rd2.value != 'WIPED'",
                     [$project_id,$ssn_field]);
@@ -186,10 +186,10 @@ class SSNMasker extends AbstractExternalModule
     function hasGroupWiped($project_id, $record, $group)
     {
         $log_event_table = REDCap::getLogEventTable($project_id);
-        $sql = "SELECT count(*) FROM $log_event_table WHERE 
-          -- page = 'PLUGIN' and 
-          project_id = $project_id 
-          and pk = '" . db_real_escape_string($record) . "' 
+        $sql = "SELECT count(*) FROM $log_event_table WHERE
+          -- page = 'PLUGIN' and
+          project_id = $project_id
+          and pk = '" . db_real_escape_string($record) . "'
           and description = 'SSN Wipe Approved For Group " . intval($group) . "'";
         $q = db_query($sql);
         return db_result($q, 0);
@@ -206,7 +206,7 @@ class SSNMasker extends AbstractExternalModule
         $q = REDCap::saveData('json', json_encode(array($data)));
         if (!empty($q['errors'])) {
             $this->emError($q, "Error wiping SSN");
-            $errors[] = "An error occurred when clearing the SSN value.  
+            $errors[] = "An error occurred when clearing the SSN value.
             Please notify <a href='mailto:redcap-help@list.stanford.edu'>redcap-help@list.stanford.edu</a>
             with the current timestamp and record number that you were working on.
             The SSN may not have been securely cleared from the database.";
@@ -226,7 +226,7 @@ class SSNMasker extends AbstractExternalModule
           UPDATE $log_event_table
             SET data_values = REPLACE($column_name, '" . $ssn_field . " = \'" .
             db_real_escape_string($ssn) . "\'', '" . $ssn_field . " = \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
-          WHERE 
+          WHERE
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND " . db_real_escape_string($column_name) . " like '%" . $ssn_field . " = \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
@@ -279,7 +279,7 @@ class SSNMasker extends AbstractExternalModule
         $sql_string = "
         UPDATE ?
             SET sql_log = REPLACE(?, '\'?\', \'?\'', '\'---cleared by ? on ". date('Y-m-d H:i:s')." ---\'')
-          WHERE 
+          WHERE
             project_id = ?
             AND pk = \'?\'
             AND ? like '%\'?\', \'?\'%' LIMIT 100";
@@ -312,7 +312,7 @@ class SSNMasker extends AbstractExternalModule
         $sql = "
           UPDATE $log_event_table
             SET sql_log = REPLACE($column_name, '\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'', '\'" . $ssn_field . "\', \'---cleared by " . $sunet_id . " on " . date('Y-m-d H:i:s') . "---\'')
-          WHERE 
+          WHERE
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND " . db_real_escape_string($column_name) . " like '%\'" . $ssn_field . "\', \'" . db_real_escape_string($ssn) . "\'%' LIMIT 100";
@@ -343,7 +343,7 @@ class SSNMasker extends AbstractExternalModule
         $sql = "
           UPDATE redcap_log_event
             SET $column_name = REPLACE($column_name, " . $target_string . " , " . $replace_string . ")
-          WHERE 
+          WHERE
             project_id = " . intval($project_id) . "
             AND pk = '" . db_real_escape_string($record) . "'
             AND " . db_real_escape_string($column_name) . " like '%" . $target_string . "\'%' LIMIT 100";

@@ -17,7 +17,7 @@
     "permissions": [
         "redcap_save_record"
     ],
-    "framework-version": 9,
+    "framework-version": 7,
     "links": {
         "control-center": [
         ],
