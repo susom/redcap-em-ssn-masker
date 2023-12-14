@@ -146,12 +146,13 @@ class SSNMasker extends AbstractExternalModule
 
         //ADDED for TESTING purposes: if a data field was entered, use that date instead of current date
          $query = $this->createQuery();
+        $data_table = method_exists('\REDCap', 'getDataTable') ? \REDCap::getDataTable($project_id) : "redcap_data";
 
-        $query->add("SELECT rd1.record from redcap_data AS rd1
-            JOIN redcap_data AS rd2
+        $query->add("SELECT rd1.record from ? AS rd1
+            JOIN ? AS rd2
             ON rd1.project_id=rd2.project_id and rd1.event_id=rd2.event_id and rd1.record=rd2.record
             WHERE rd1.project_id = ? and rd2.field_name = ? and rd2.value != 'WIPED'",
-                    [$project_id,$ssn_field]);
+                    [$data_table, $data_table, $project_id,$ssn_field]);
 
         //ADDED for TESTING purposes: if a data field was entered, use that date instead of current date
         if ($test_date) {
